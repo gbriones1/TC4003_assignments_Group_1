@@ -5,6 +5,7 @@ import (
 	"sort"
 	"io/ioutil"
 	"strings"
+	"regexp"
 )
 
 // Find the top K most common words in a text document.
@@ -21,27 +22,34 @@ func topWords(path string, numWords int, charThreshold int) []WordCount {
 	// TODO: implement me
 	// HINT: You may find the `strings.Fields` and `strings.ToLower` functions helpful
 	// HINT: To keep only alphanumeric characters, use the regex "[^0-9a-zA-Z]+"
-
+	// Reads the document
 	text,err := ioutil.ReadFile(path)
 	checkError(err)
-	//fmt.Print(string(text))
-
+	// Gets all the words
 	words := strings.Fields(string(text))
-	counts := map[string]int{} // Empty map
-
-
+	// An empty map to store the words and their counts
+	counts := map[string]int{}
+	// Loop through all the words
 	for _, word := range words {
-		counts[strings.ToLower(word)]++
+		// Regex to say we only want letters and numbers
+		reg, err := regexp.Compile("[^0-9a-zA-Z]+")
+		checkError(err)
+		// Remove all non-alpha-numeric chars from the word
+		validWord := reg.ReplaceAllString(word, "")
+		// If condition to validate that the charThreshold condition is meet
+		if len(validWord) >= charThreshold{
+			counts[strings.ToLower(validWord)]++
+		}
 	}
-	
-	// Convert map to flattened slice of keys and values.
+	// Convert map to flattened slice of wordCounts
 	flat := []WordCount{}
-	for key, value := range counts {
-		flat = append(flat, key)
-		flat = append(flat, value)
+	for word, count := range counts {
+		obj := WordCount{word, count}
+		flat = append(flat, obj)
 	}
-	
-	return aux
+	// Sort the slice
+	sortWordCounts(flat)
+	return flat[:numWords]
 }
 
 // A struct that represents how many times a word is observed in a document
