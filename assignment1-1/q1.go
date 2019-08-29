@@ -29,11 +29,11 @@ func topWords(path string, numWords int, charThreshold int) []WordCount {
 	words := strings.Fields(string(text))
 	// An empty map to store the words and their counts
 	counts := map[string]int{}
+	// Regex to say we only want letters and numbers
+	reg, err := regexp.Compile("[^0-9a-zA-Z]+")
+	checkError(err)
 	// Loop through all the words
 	for _, word := range words {
-		// Regex to say we only want letters and numbers
-		reg, err := regexp.Compile("[^0-9a-zA-Z]+")
-		checkError(err)
 		// Remove all non-alpha-numeric chars from the word
 		validWord := reg.ReplaceAllString(word, "")
 		// If condition to validate that the charThreshold condition is meet
