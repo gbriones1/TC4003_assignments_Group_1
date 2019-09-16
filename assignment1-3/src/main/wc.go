@@ -14,13 +14,12 @@ import (
 // and the value is the file's contents. The return value should be a slice of
 // key/value pairs, each represented by a mapreduce.KeyValue.
 func mapF(document string, value string) (res []mapreduce.KeyValue) {
-	reg, _ := regexp.Compile("[^0-9a-zA-Z]+")
-	words := strings.Fields(value)
-	for _, word := range words{
-		validWord := reg.ReplaceAllString(word, "")
-		if len(validWord) >= 1 {
-			res = append(res, mapreduce.KeyValue{validWord, "1"})
-		}
+	// TODO: you have to write this function
+	words := strings.FieldsFunc(value, func(c rune) bool {
+		return !unicode.IsLetter(c)
+	})
+	for _, word := range words {
+		res = append(res, mapreduce.KeyValue{word, "1"})
 	}
 	return res
 }
