@@ -18,20 +18,22 @@ func doMap(
 	mapF func(file string, contents string) []KeyValue,
 ) {
 	// debug("Start doMap function: %v %v %v %v\n",jobName,mapTaskNumber,inFile,nReduce)
+	value, err := ioutil.ReadFile(inFile)
+	checkError(err)
+	result := mapF(inFile, string(value))
+	encoders := make(map[uint32]*json.Encoder)
 	for r := 0; r < nReduce; r++ {
 		outFile := reduceName(jobName, mapTaskNumber, r)
 		// debug("outFile: %v\n", outFile)
-		value, err := ioutil.ReadFile(inFile)
-		checkError(err)
-		result := mapF(inFile, string(value))
 		fileWriter, err := os.Create(outFile)
 		checkError(err)
 		defer fileWriter.Close()
-		enc := json.NewEncoder(fileWriter)
-		for i := range result {
-			err := enc.Encode(&result[i])
-			checkError(err)
-		}
+		encoders[uint32(r)] = json.NewEncoder(fileWriter)
+	}
+	for i := range result {
+		r := ihash(result[i].Key) % uint32(nReduce)
+		err := encoders[r].Encode(&result[i])
+		checkError(err)
 	}
 }
 
