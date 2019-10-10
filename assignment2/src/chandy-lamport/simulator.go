@@ -23,7 +23,15 @@ type Simulator struct {
 	nextSnapshotId int
 	servers        map[string]*Server // key = server ID
 	logger         *Logger
-	// TODO: ADD MORE FIELDS HERE
+
+	// List of snapshots
+	snapshots *SyncMap
+
+	// Snapshot blocking variable until completition
+	snapshotWait map[int](chan bool)
+
+	// Snapshot count of finished servers
+	snapshotCompleted map[int]int
 }
 
 func NewSimulator() *Simulator {
@@ -32,6 +40,9 @@ func NewSimulator() *Simulator {
 		0,
 		make(map[string]*Server),
 		NewLogger(),
+		NewSyncMap(),
+		make(map[int](chan bool)),
+		make(map[int]int),
 	}
 }
 
@@ -107,20 +118,39 @@ func (sim *Simulator) StartSnapshot(serverId string) {
 	snapshotId := sim.nextSnapshotId
 	sim.nextSnapshotId++
 	sim.logger.RecordEvent(sim.servers[serverId], StartSnapshot{serverId, snapshotId})
-	// TODO: IMPLEMENT ME
+
+	// Start snapshot
+	sim.servers[serverId].StartSnapshot(snapshotId)
+
+	// Initialize wait channel for the snapshot
+	sim.snapshotWait[snapshotId] = make(chan bool, 1)
+
+	// Initialize number of completed servers
+	sim.snapshotCompleted[snapshotId] = 0
 }
 
 // Callback for servers to notify the simulator that the snapshot process has
 // completed on a particular server
 func (sim *Simulator) NotifySnapshotComplete(serverId string, snapshotId int) {
 	sim.logger.RecordEvent(sim.servers[serverId], EndSnapshot{serverId, snapshotId})
-	// TODO: IMPLEMENT ME
+
+	// Increase number of completed servers
+	sim.snapshotCompleted[snapshotId]++
+
+	// If all servers have completed, then unlock snapshot wait channel
+	if sim.snapshotCompleted[snapshotId] == len(sim.servers) {
+		sim.snapshotWait[snapshotId] <- true
+	}
 }
 
 // Collect and merge snapshot state from all the servers.
 // This function blocks until the snapshot process has completed on all servers.
 func (sim *Simulator) CollectSnapshot(snapshotId int) *SnapshotState {
-	// TODO: IMPLEMENT ME
-	snap := SnapshotState{snapshotId, make(map[string]int), make([]*SnapshotMessage, 0)}
+	// Wait for snapshot to complete
+	<-sim.snapshotWait[snapshotId]
+
+	// Get snapshot
+	value, _ := sim.snapshots.Load(snapshotId)
+	snap, _ := value.(SnapshotState)
 	return &snap
 }
