@@ -120,14 +120,21 @@ func (sim *Simulator) StartSnapshot(serverId string) {
 	sim.nextSnapshotId++
 	sim.logger.RecordEvent(sim.servers[serverId], StartSnapshot{serverId, snapshotId})
 
-	// Start snapshot
-	sim.servers[serverId].StartSnapshot(snapshotId)
+	// Create an new instance of a global snapshot with `snapshotId`
+	sim.snapshots.Store(snapshotId, SnapshotState{
+		snapshotId,
+		make(map[string]int),
+		make([]*SnapshotMessage, 0),
+	})
 
 	// Initialize wait channel for the snapshot
 	sim.snapshotWait[snapshotId] = make(chan bool, 1)
 
 	// Initialize number of completed servers
 	sim.snapshotCompleted[snapshotId] = 0
+
+	// Start first local snapshot in a server with `serverId`
+	sim.servers[serverId].StartSnapshot(snapshotId)
 }
 
 // Callback for servers to notify the simulator that the snapshot process has

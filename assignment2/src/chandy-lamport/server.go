@@ -89,7 +89,6 @@ func (server *Server) SendTokens(numTokens int, dest string) {
 // When the snapshot algorithm completes on this server, this function
 // should notify the simulator by calling `sim.NotifySnapshotComplete`.
 func (server *Server) HandlePacket(src string, message interface{}) {
-	// TODO: IMPLEMENT ME
 	switch message := message.(type) {
 	case MarkerMessage:
 		// If first time received marker, then start snapshot
@@ -149,12 +148,8 @@ func (server *Server) StartSnapshot(snapshotId int) {
 		server.chanRecordState[snapshotId][from] = true
 	}
 
-	// Get or create snapshot
-	value, _ := server.sim.snapshots.LoadOrStore(snapshotId, SnapshotState{
-		snapshotId,
-		make(map[string]int),
-		make([]*SnapshotMessage, 0),
-	})
+	// Get the glogal snapshot
+	value, _ := server.sim.snapshots.Load(snapshotId)
 	snap := value.(SnapshotState)
 
 	// Snapshot server tokens
