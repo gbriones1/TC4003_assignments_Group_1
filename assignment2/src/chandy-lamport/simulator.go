@@ -24,7 +24,8 @@ type Simulator struct {
 	servers        map[string]*Server // key = server ID
 	logger         *Logger
 
-	// List of snapshots
+	// Map of snapshots
+	// This SyncMap internally is a map[int]*SnapshotState
 	snapshots *SyncMap
 
 	// Snapshot blocking variable until completition
@@ -151,6 +152,6 @@ func (sim *Simulator) CollectSnapshot(snapshotId int) *SnapshotState {
 
 	// Get snapshot
 	value, _ := sim.snapshots.Load(snapshotId)
-	snap, _ := value.(SnapshotState)
+	snap := value.(SnapshotState)
 	return &snap
 }

@@ -16,10 +16,8 @@ type Server struct {
 
 	// Map to keep track of channel recording state
 	// True means recording, false means recording has stopped
+	// Description is: map[snapshotId]map[src]recording_enabled
 	chanRecordState map[int]map[string]bool
-
-	// Map to keep track of messages recorded from incoming channels
-	chanRecords map[int]map[string][]*SnapshotMessage
 }
 
 // A unidirectional communication channel between two servers
@@ -38,7 +36,6 @@ func NewServer(id string, tokens int, sim *Simulator) *Server {
 		make(map[string]*Link),
 		make(map[string]*Link),
 		make(map[int]map[string]bool),
-		make(map[int]map[string][]*SnapshotMessage),
 	}
 }
 
@@ -103,12 +100,6 @@ func (server *Server) HandlePacket(src string, message interface{}) {
 		// Stop recording messages from `src`
 		server.chanRecordState[message.snapshotId][src] = false
 
-		// Move recorded received messages to snapshot
-		value, _ := server.sim.snapshots.Load(message.snapshotId)
-		snap, _ := value.(SnapshotState)
-		snap.messages = append(snap.messages, server.chanRecords[message.snapshotId][src]...)
-		server.sim.snapshots.Store(message.snapshotId, snap)
-
 		// Evaluate if all recording messages have stopped
 		completed := true
 		for _, state := range server.chanRecordState[message.snapshotId] {
@@ -124,14 +115,18 @@ func (server *Server) HandlePacket(src string, message interface{}) {
 		}
 
 	case TokenMessage:
-		// Save message in all recordings
+		// If there is a recording enabled for this `src`,
+		// then save message in snapshot
 		for snapshotId, states := range server.chanRecordState {
 			if states[src] {
-				server.chanRecords[snapshotId][src] = append(server.chanRecords[snapshotId][src], &SnapshotMessage{
+				value, _ := server.sim.snapshots.Load(snapshotId)
+				snap := value.(SnapshotState)
+				snap.messages = append(snap.messages, &SnapshotMessage{
 					src,
 					server.Id,
 					message,
 				})
+				server.sim.snapshots.Store(snapshotId, snap)
 			}
 		}
 
@@ -145,15 +140,13 @@ func (server *Server) HandlePacket(src string, message interface{}) {
 // Start the chandy-lamport snapshot algorithm on this server.
 // This should be called only once per server.
 func (server *Server) StartSnapshot(snapshotId int) {
-	// Initialize record tracking variables for this snapshot
+	// Initialize record tracking for this snapshot
 	server.chanRecordState[snapshotId] = make(map[string]bool)
-	server.chanRecords[snapshotId] = make(map[string][]*SnapshotMessage)
 
-	// Enable recordings from all incoming channels
+	// Enable recordings from each incoming channels
 	for link := range server.inboundLinks {
 		from := server.inboundLinks[link].src
 		server.chanRecordState[snapshotId][from] = true
-		server.chanRecords[snapshotId][from] = make([]*SnapshotMessage, 0)
 	}
 
 	// Get or create snapshot
@@ -162,7 +155,7 @@ func (server *Server) StartSnapshot(snapshotId int) {
 		make(map[string]int),
 		make([]*SnapshotMessage, 0),
 	})
-	snap, _ := value.(SnapshotState)
+	snap := value.(SnapshotState)
 
 	// Snapshot server tokens
 	snap.tokens[server.Id] = server.Tokens
