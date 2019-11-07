@@ -157,6 +157,9 @@ func (sim *Simulator) CollectSnapshot(snapshotId int) *SnapshotState {
 	// Wait for snapshot to complete
 	<-sim.snapshotWait[snapshotId]
 
+	// Close channel
+	close(sim.snapshotWait[snapshotId])
+
 	// Get snapshot
 	value, _ := sim.snapshots.Load(snapshotId)
 	snap := value.(SnapshotState)
